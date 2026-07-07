@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#111a59">
+  <title>虹学 七夕の願い</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="bamboo">🎋</div>
+      <h1>虹学 七夕の願い</h1>
+      <p>みんなの願いが、天の川に届きますように…✨</p>
+      <div class="total">♡ みんなのいいね数 <strong id="totalLikes">0</strong></div>
+    </header>
+
+    <section class="carousel-wrap">
+      <button class="arrow left" id="prev" aria-label="前へ">‹</button>
+      <div class="carousel" id="carousel"></div>
+      <button class="arrow right" id="next" aria-label="次へ">›</button>
+      <p class="hint">左右にスワイプして<br>みんなの願いを見てみよう！</p>
+    </section>
+
+    <nav class="sort">
+      <button class="active" data-sort="new">✨ 新しい順</button>
+      <button data-sort="likes">♡ いいね順</button>
+    </nav>
+
+    <section class="event">
+      <strong>★ 七夕イベント開催中！</strong>
+      <span>願いを書いて、みんなの願いに「いいね」を送ろう！</span>
+    </section>
+
+    <section class="form-card">
+      <h2>願いを書く</h2>
+      <form id="wishForm">
+        <label>名前<input id="name" maxlength="30" required placeholder="例：小柳ロウ"></label>
+        <label>学年
+          <select id="grade" required>
+            <option value="">選択してください</option>
+            <option>1年生</option><option>2年生</option><option>3年生</option>
+          </select>
+        </label>
+        <label>願い事<textarea id="wish" maxlength="120" required placeholder="願い事を書いてください"></textarea></label>
+        <button type="submit">願いを投稿する</button>
+      </form>
+      <p id="status"></p>
+    </section>
+  </main>
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
