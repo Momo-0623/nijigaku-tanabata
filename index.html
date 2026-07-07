@@ -1,630 +1,189 @@
-// ==============================
-// Firebase 読み込み
-// ==============================
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
 
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  onSnapshot,
-  doc,
-  updateDoc,
-  increment,
-  serverTimestamp
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
+  <title>虹学 七夕の願い</title>
 
+  <link rel="stylesheet" href="style.css">
+</head>
 
-// ==============================
-// Firebase 設定
-// ==============================
+<body>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDsRu7HzIl2_u334EfTrOCPqaIlphgXtZw",
-  authDomain: "nijigaku-tanabata.firebaseapp.com",
-  projectId: "nijigaku-tanabata",
-  storageBucket: "nijigaku-tanabata.firebasestorage.app",
-  messagingSenderId: "959354845309",
-  appId: "1:959354845309:web:109ac828f5a9631f89d914",
-  measurementId: "G-7M0L137SGH"
-};
+  <main class="app">
 
+    <header>
+      <div class="bamboo">🎋</div>
 
-// ==============================
-// Firebase 起動
-// ==============================
+      <h1>虹学 七夕の願い</h1>
 
-const app = initializeApp(firebaseConfig);
+      <p>
+        夜空に願いを。<br>
+        みんなの短冊を覗いてみよう。
+      </p>
 
-const db = getFirestore(app);
-
-const wishesRef = collection(db, "wishes");
+      <div class="total">
+        ♥ みんなのいいね
+        <strong id="totalLikes">0</strong>
+      </div>
+    </header>
 
 
-// ==============================
-// HTML取得
-// ==============================
+    <section class="carousel-wrap">
 
-const carousel = document.querySelector("#carousel");
+      <button
+        id="prev"
+        class="arrow left"
+        type="button"
+        aria-label="前の願い"
+      >
+        ‹
+      </button>
 
-const totalLikes = document.querySelector("#totalLikes");
-
-const form = document.querySelector("#wishForm");
-
-const status = document.querySelector("#status");
-
-const prevButton = document.querySelector("#prev");
-
-const nextButton = document.querySelector("#next");
-
-
-// ==============================
-// データ
-// ==============================
-
-let wishes = [];
-
-let sortMode = "new";
-
-
-// ==============================
-// いいね済み保存キー
-// ==============================
-
-function likedKey(id) {
-
-  return `tanabata-liked-${id}`;
-
-}
-
-
-// ==============================
-// HTML安全処理
-// ==============================
-
-function escapeHtml(value = "") {
-
-  const div = document.createElement("div");
-
-  div.textContent = value;
-
-  return div.innerHTML;
-
-}
-
-
-// ==============================
-// 短冊表示
-// ==============================
-
-function render() {
-
-  const data = [...wishes].sort((a, b) => {
-
-    if (sortMode === "likes") {
-
-      return (b.likes || 0) - (a.likes || 0);
-
-    }
-
-    return (b.createdMs || 0) - (a.createdMs || 0);
-
-  });
-
-
-  // 総いいね数
-
-  if (totalLikes) {
-
-    totalLikes.textContent = wishes
-
-      .reduce(
-
-        (total, wish) => total + (wish.likes || 0),
-
-        0
-
-      )
-
-      .toLocaleString("ja-JP");
-
-  }
-
-
-  // 願いがない場合
-
-  if (!data.length) {
-
-    carousel.innerHTML = `
-
-      <div class="empty">
-
-        まだ願い事がありません。<br>
-
-        最初の短冊を書いてみよう。
-
+      <div id="carousel" class="carousel">
+        <div class="loading">
+          願い事を読み込んでいます…
+        </div>
       </div>
 
-    `;
+      <button
+        id="next"
+        class="arrow right"
+        type="button"
+        aria-label="次の願い"
+      >
+        ›
+      </button>
 
-    return;
-
-  }
-
-
-  // 短冊生成
-
-  carousel.innerHTML = data
-
-    .map(wish => {
-
-      const liked =
-
-        localStorage.getItem(
-
-          likedKey(wish.id)
-
-        ) === "1";
+    </section>
 
 
-      return `
-
-        <article class="wish-card">
-
-          <h3>
-
-            ${escapeHtml(wish.name)}
-
-          </h3>
+    <p class="hint">
+      ← 横にスワイプして、みんなの願いを見てみよう →<br>
+      気になる願いには ♥ を送れます
+    </p>
 
 
-          <span class="grade">
+    <div class="sort">
 
-            ${escapeHtml(wish.grade)}
+      <button
+        class="active"
+        type="button"
+        data-sort="new"
+      >
+        新着順
+      </button>
 
-          </span>
+      <button
+        type="button"
+        data-sort="likes"
+      >
+        いいね順
+      </button>
+
+    </div>
 
 
-          <div class="wish-text">
+    <section class="event">
 
-            ${escapeHtml(wish.wish)}
+      <strong>🎋 七夕限定イベント</strong>
 
-          </div>
+      <span>
+        虹学のみんなで、願い事を書いてみよう。
+      </span>
+
+      <span>
+        投稿された願いは、このページにリアルタイムで表示されます。
+      </span>
+
+    </section>
 
 
-          <button
+    <section class="form-card">
 
-            class="like ${liked ? "liked" : ""}"
+      <h2>短冊を書く</h2>
 
-            data-id="${wish.id}"
+      <form id="wishForm">
 
-            ${liked ? "disabled" : ""}
+        <label>
+          名前
 
+          <input
+            id="name"
+            type="text"
+            maxlength="30"
+            placeholder="名前を入力"
+            required
           >
+        </label>
 
-            ♥ ${wish.likes || 0}
 
-          </button>
+        <label>
+          学年
 
-        </article>
+          <select id="grade" required>
 
-      `;
+            <option value="">
+              学年を選択
+            </option>
 
-    })
+            <option value="1年生">
+              1年生
+            </option>
 
-    .join("");
+            <option value="2年生">
+              2年生
+            </option>
 
-}
+            <option value="3年生">
+              3年生
+            </option>
 
+            <option value="教職員">
+              教職員
+            </option>
 
-// ==============================
-// Firebase リアルタイム取得
-// ==============================
+          </select>
 
-onSnapshot(
+        </label>
 
-  wishesRef,
 
-  snapshot => {
+        <label>
+          願い事
 
-    wishes = snapshot.docs.map(document => {
+          <textarea
+            id="wish"
+            maxlength="150"
+            placeholder="あなたの願い事を書いてください"
+            required
+          ></textarea>
 
-      const data = document.data();
+        </label>
 
 
-      return {
+        <button type="submit">
+          願いを短冊に込める
+        </button>
 
-        id: document.id,
+      </form>
 
-        ...data,
 
-        createdMs:
+      <p id="status"></p>
 
-          data.createdAt?.toMillis?.() || 0
+    </section>
 
-      };
+  </main>
 
-    });
 
+  <script
+    type="module"
+    src="script.js"
+  ></script>
 
-    console.log(
-
-      "願い取得成功",
-
-      wishes
-
-    );
-
-
-    render();
-
-  },
-
-
-  error => {
-
-    console.error(
-
-      "Firebase取得エラー",
-
-      error
-
-    );
-
-
-    carousel.innerHTML = `
-
-      <div class="empty">
-
-        Firebaseへの接続に失敗しました。<br>
-
-        ${escapeHtml(error.message)}
-
-      </div>
-
-    `;
-
-  }
-
-);
-
-
-// ==============================
-// いいね
-// ==============================
-
-carousel.addEventListener(
-
-  "click",
-
-  async event => {
-
-    const button =
-
-      event.target.closest(".like");
-
-
-    if (
-
-      !button ||
-
-      button.disabled
-
-    ) {
-
-      return;
-
-    }
-
-
-    const id = button.dataset.id;
-
-
-    button.disabled = true;
-
-
-    localStorage.setItem(
-
-      likedKey(id),
-
-      "1"
-
-    );
-
-
-    try {
-
-      await updateDoc(
-
-        doc(
-
-          db,
-
-          "wishes",
-
-          id
-
-        ),
-
-        {
-
-          likes: increment(1)
-
-        }
-
-      );
-
-    }
-
-
-    catch (error) {
-
-      console.error(
-
-        "いいねエラー",
-
-        error
-
-      );
-
-
-      localStorage.removeItem(
-
-        likedKey(id)
-
-      );
-
-
-      button.disabled = false;
-
-
-      alert(
-
-        "いいねに失敗しました"
-
-      );
-
-    }
-
-  }
-
-);
-
-
-// ==============================
-// 願い投稿
-// ==============================
-
-form.addEventListener(
-
-  "submit",
-
-  async event => {
-
-    event.preventDefault();
-
-
-    const nameInput =
-
-      document.querySelector("#name");
-
-
-    const gradeInput =
-
-      document.querySelector("#grade");
-
-
-    const wishInput =
-
-      document.querySelector("#wish");
-
-
-    const name =
-
-      nameInput.value.trim();
-
-
-    const grade =
-
-      gradeInput.value;
-
-
-    const wish =
-
-      wishInput.value.trim();
-
-
-    if (
-
-      !name ||
-
-      !grade ||
-
-      !wish
-
-    ) {
-
-      status.textContent =
-
-        "すべて入力してください。";
-
-
-      return;
-
-    }
-
-
-    status.textContent =
-
-      "投稿中…";
-
-
-    try {
-
-      const result = await addDoc(
-
-        wishesRef,
-
-        {
-
-          name: name,
-
-          grade: grade,
-
-          wish: wish,
-
-          likes: 0,
-
-          createdAt: serverTimestamp()
-
-        }
-
-      );
-
-
-      console.log(
-
-        "投稿成功",
-
-        result.id
-
-      );
-
-
-      form.reset();
-
-
-      status.textContent =
-
-        "願い事を投稿しました ✨";
-
-    }
-
-
-    catch (error) {
-
-      console.error(
-
-        "投稿エラー",
-
-        error
-
-      );
-
-
-      status.textContent =
-
-        `投稿できませんでした：${error.message}`;
-
-    }
-
-  }
-
-);
-
-
-// ==============================
-// 並び替え
-// ==============================
-
-document
-
-  .querySelectorAll(".sort button")
-
-  .forEach(button => {
-
-    button.addEventListener(
-
-      "click",
-
-      () => {
-
-        document
-
-          .querySelectorAll(".sort button")
-
-          .forEach(item => {
-
-            item.classList.remove(
-
-              "active"
-
-            );
-
-          });
-
-
-        button.classList.add(
-
-          "active"
-
-        );
-
-
-        sortMode =
-
-          button.dataset.sort;
-
-
-        render();
-
-      }
-
-    );
-
-  });
-
-
-// ==============================
-// 左スクロール
-// ==============================
-
-if (prevButton) {
-
-  prevButton.addEventListener(
-
-    "click",
-
-    () => {
-
-      carousel.scrollBy({
-
-        left: -284,
-
-        behavior: "smooth"
-
-      });
-
-    }
-
-  );
-
-}
-
-
-// ==============================
-// 右スクロール
-// ==============================
-
-if (nextButton) {
-
-  nextButton.addEventListener(
-
-    "click",
-
-    () => {
-
-      carousel.scrollBy({
-
-        left: 284,
-
-        behavior: "smooth"
-
-      });
-
-    }
-
-  );
-
-}
+</body>
+</html>
