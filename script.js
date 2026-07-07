@@ -67,6 +67,8 @@ let wishes = [];
 
 let sortMode = "new";
 
+let currentIndex = 0;
+
 
 // ==============================
 // いいね済み保存キー
@@ -91,17 +93,26 @@ function escapeHtml(value = "") {
 
 
 // ==============================
-// 短冊表示
+// 表示用データ取得
 // ==============================
 
-function render() {
-  const data = [...wishes].sort((a, b) => {
+function getSortedWishes() {
+  return [...wishes].sort((a, b) => {
     if (sortMode === "likes") {
       return (b.likes || 0) - (a.likes || 0);
     }
 
     return (b.createdMs || 0) - (a.createdMs || 0);
   });
+}
+
+
+// ==============================
+// 短冊表示
+// ==============================
+
+function render() {
+  const data = getSortedWishes();
 
 
   // 総いいね数
@@ -130,6 +141,13 @@ function render() {
   }
 
 
+  // 現在位置調整
+
+  if (currentIndex >= data.length) {
+    currentIndex = 0;
+  }
+
+
   // 短冊生成
 
   carousel.innerHTML = data
@@ -139,11 +157,18 @@ function render() {
           likedKey(wish.id)
         ) === "1";
 
-      const name = escapeHtml(wish.name || "");
 
-      const grade = escapeHtml(wish.grade || "");
+      const name =
+        escapeHtml(wish.name || "");
 
-      const wishText = escapeHtml(wish.wish || "").trim();
+
+      const grade =
+        escapeHtml(wish.grade || "");
+
+
+      const wishText =
+        escapeHtml(wish.wish || "").trim();
+
 
       return `
         <article class="wish-card">
@@ -159,7 +184,185 @@ function render() {
       `;
     })
     .join("");
+
+
+  requestAnimationFrame(() => {
+    scrollToCurrent(false);
+  });
 }
+
+
+// ==============================
+// 現在の短冊へ移動
+// ==============================
+
+function scrollToCurrent(smooth = true) {
+  const cards =
+    carousel.querySelectorAll(".wish-card");
+
+
+  if (!cards.length) {
+    return;
+  }
+
+
+  const card =
+    cards[currentIndex];
+
+
+  if (!card) {
+    return;
+  }
+
+
+  card.scrollIntoView({
+    behavior: smooth ? "smooth" : "auto",
+    inline: "center",
+    block: "nearest"
+  });
+}
+
+
+// ==============================
+// 次の短冊
+// ==============================
+
+function goNext() {
+  const data = getSortedWishes();
+
+
+  if (!data.length) {
+    return;
+  }
+
+
+  currentIndex++;
+
+
+  // 最後 → 最初
+
+  if (currentIndex >= data.length) {
+    currentIndex = 0;
+  }
+
+
+  scrollToCurrent(true);
+}
+
+
+// ==============================
+// 前の短冊
+// ==============================
+
+function goPrev() {
+  const data = getSortedWishes();
+
+
+  if (!data.length) {
+    return;
+  }
+
+
+  currentIndex--;
+
+
+  // 最初 → 最後
+
+  if (currentIndex < 0) {
+    currentIndex = data.length - 1;
+  }
+
+
+  scrollToCurrent(true);
+}
+
+
+// ==============================
+// スワイプ位置検出
+// ==============================
+
+let scrollTimer = null;
+
+
+carousel.addEventListener(
+  "scroll",
+
+  () => {
+    clearTimeout(scrollTimer);
+
+
+    scrollTimer = setTimeout(() => {
+      const cards =
+        [...carousel.querySelectorAll(".wish-card")];
+
+
+      if (!cards.length) {
+        return;
+      }
+
+
+      const carouselCenter =
+        carousel.scrollLeft +
+        carousel.clientWidth / 2;
+
+
+      let closestIndex = 0;
+
+      let closestDistance = Infinity;
+
+
+      cards.forEach((card, index) => {
+        const cardCenter =
+          card.offsetLeft +
+          card.offsetWidth / 2;
+
+
+        const distance =
+          Math.abs(
+            carouselCenter - cardCenter
+          );
+
+
+        if (distance < closestDistance) {
+          closestDistance = distance;
+
+          closestIndex = index;
+        }
+      });
+
+
+      currentIndex = closestIndex;
+
+
+      // 最後までスワイプしたら最初へ
+
+      if (
+        currentIndex === cards.length - 1 &&
+        carousel.scrollLeft +
+          carousel.clientWidth >=
+          carousel.scrollWidth - 5
+      ) {
+        setTimeout(() => {
+          currentIndex = 0;
+
+          scrollToCurrent(false);
+        }, 250);
+      }
+
+
+      // 最初から左へ行ったら最後へ
+
+      if (
+        currentIndex === 0 &&
+        carousel.scrollLeft <= 5
+      ) {
+        // 通常表示時の誤作動防止
+        return;
+      }
+
+    }, 150);
+  }
+);
 
 
 // ==============================
@@ -172,6 +375,7 @@ onSnapshot(
   snapshot => {
     wishes = snapshot.docs.map(document => {
       const data = document.data();
+
 
       return {
         id: document.id,
@@ -192,6 +396,7 @@ onSnapshot(
 
     render();
   },
+
 
   error => {
     console.error(
@@ -230,7 +435,8 @@ carousel.addEventListener(
     }
 
 
-    const id = button.dataset.id;
+    const id =
+      button.dataset.id;
 
 
     button.disabled = true;
@@ -255,6 +461,7 @@ carousel.addEventListener(
         }
       );
     }
+
 
     catch (error) {
       console.error(
@@ -293,8 +500,10 @@ form.addEventListener(
     const nameInput =
       document.querySelector("#name");
 
+
     const gradeInput =
       document.querySelector("#grade");
+
 
     const wishInput =
       document.querySelector("#wish");
@@ -303,8 +512,10 @@ form.addEventListener(
     const name =
       nameInput.value.trim();
 
+
     const grade =
       gradeInput.value;
+
 
     const wish =
       wishInput.value.trim();
@@ -317,6 +528,7 @@ form.addEventListener(
     ) {
       status.textContent =
         "すべて入力してください。";
+
 
       return;
     }
@@ -353,9 +565,13 @@ form.addEventListener(
       form.reset();
 
 
+      currentIndex = 0;
+
+
       status.textContent =
         "願い事を投稿しました ✨";
     }
+
 
     catch (error) {
       console.error(
@@ -400,6 +616,9 @@ document
           button.dataset.sort;
 
 
+        currentIndex = 0;
+
+
         render();
       }
     );
@@ -407,38 +626,26 @@ document
 
 
 // ==============================
-// 左スクロール
+// 左ボタン
 // ==============================
 
 if (prevButton) {
   prevButton.addEventListener(
     "click",
 
-    () => {
-      carousel.scrollBy({
-        left: -284,
-
-        behavior: "smooth"
-      });
-    }
+    goPrev
   );
 }
 
 
 // ==============================
-// 右スクロール
+// 右ボタン
 // ==============================
 
 if (nextButton) {
   nextButton.addEventListener(
     "click",
 
-    () => {
-      carousel.scrollBy({
-        left: 284,
-
-        behavior: "smooth"
-      });
-    }
+    goNext
   );
 }
