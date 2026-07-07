@@ -73,9 +73,7 @@ let sortMode = "new";
 // ==============================
 
 function likedKey(id) {
-
   return `tanabata-liked-${id}`;
-
 }
 
 
@@ -84,13 +82,11 @@ function likedKey(id) {
 // ==============================
 
 function escapeHtml(value = "") {
-
   const div = document.createElement("div");
 
   div.textContent = value;
 
   return div.innerHTML;
-
 }
 
 
@@ -99,122 +95,70 @@ function escapeHtml(value = "") {
 // ==============================
 
 function render() {
-
   const data = [...wishes].sort((a, b) => {
-
     if (sortMode === "likes") {
-
       return (b.likes || 0) - (a.likes || 0);
-
     }
 
     return (b.createdMs || 0) - (a.createdMs || 0);
-
   });
 
 
   // 総いいね数
 
   if (totalLikes) {
-
     totalLikes.textContent = wishes
-
       .reduce(
-
         (total, wish) => total + (wish.likes || 0),
-
         0
-
       )
-
       .toLocaleString("ja-JP");
-
   }
 
 
   // 願いがない場合
 
   if (!data.length) {
-
     carousel.innerHTML = `
-
       <div class="empty">
-
         まだ願い事がありません。<br>
-
         最初の短冊を書いてみよう。
-
       </div>
-
     `;
 
     return;
-
   }
 
 
   // 短冊生成
 
   carousel.innerHTML = data
-
     .map(wish => {
-
       const liked =
-
         localStorage.getItem(
-
           likedKey(wish.id)
-
         ) === "1";
 
+      const name = escapeHtml(wish.name || "");
+
+      const grade = escapeHtml(wish.grade || "");
+
+      const wishText = escapeHtml(wish.wish || "").trim();
 
       return `
-
         <article class="wish-card">
-
-          <h3>
-
-            ${escapeHtml(wish.name)}
-
-          </h3>
-
-
-          <span class="grade">
-
-            ${escapeHtml(wish.grade)}
-
-          </span>
-
-
-          <div class="wish-text">
-
-            ${escapeHtml(wish.wish)}
-
-          </div>
-
-
+          <h3>${name}</h3>
+          <span class="grade">${grade}</span>
+          <div class="wish-text">${wishText}</div>
           <button
-
             class="like ${liked ? "liked" : ""}"
-
             data-id="${wish.id}"
-
             ${liked ? "disabled" : ""}
-
-          >
-
-            ♥ ${wish.likes || 0}
-
-          </button>
-
+          >♥ ${wish.likes || 0}</button>
         </article>
-
       `;
-
     })
-
     .join("");
-
 }
 
 
@@ -223,70 +167,46 @@ function render() {
 // ==============================
 
 onSnapshot(
-
   wishesRef,
 
   snapshot => {
-
     wishes = snapshot.docs.map(document => {
-
       const data = document.data();
 
-
       return {
-
         id: document.id,
 
         ...data,
 
         createdMs:
-
           data.createdAt?.toMillis?.() || 0
-
       };
-
     });
 
 
     console.log(
-
       "願い取得成功",
-
       wishes
-
     );
 
 
     render();
-
   },
 
-
   error => {
-
     console.error(
-
       "Firebase取得エラー",
-
       error
-
     );
 
 
     carousel.innerHTML = `
-
       <div class="empty">
-
         Firebaseへの接続に失敗しました。<br>
-
         ${escapeHtml(error.message)}
-
       </div>
-
     `;
-
   }
-
 );
 
 
@@ -295,26 +215,18 @@ onSnapshot(
 // ==============================
 
 carousel.addEventListener(
-
   "click",
 
   async event => {
-
     const button =
-
       event.target.closest(".like");
 
 
     if (
-
       !button ||
-
       button.disabled
-
     ) {
-
       return;
-
     }
 
 
@@ -325,54 +237,34 @@ carousel.addEventListener(
 
 
     localStorage.setItem(
-
       likedKey(id),
-
       "1"
-
     );
 
 
     try {
-
       await updateDoc(
-
         doc(
-
           db,
-
           "wishes",
-
           id
-
         ),
 
         {
-
           likes: increment(1)
-
         }
-
       );
-
     }
 
-
     catch (error) {
-
       console.error(
-
         "いいねエラー",
-
         error
-
       );
 
 
       localStorage.removeItem(
-
         likedKey(id)
-
       );
 
 
@@ -380,15 +272,10 @@ carousel.addEventListener(
 
 
       alert(
-
         "いいねに失敗しました"
-
       );
-
     }
-
   }
-
 );
 
 
@@ -397,77 +284,53 @@ carousel.addEventListener(
 // ==============================
 
 form.addEventListener(
-
   "submit",
 
   async event => {
-
     event.preventDefault();
 
 
     const nameInput =
-
       document.querySelector("#name");
 
-
     const gradeInput =
-
       document.querySelector("#grade");
 
-
     const wishInput =
-
       document.querySelector("#wish");
 
 
     const name =
-
       nameInput.value.trim();
 
-
     const grade =
-
       gradeInput.value;
 
-
     const wish =
-
       wishInput.value.trim();
 
 
     if (
-
       !name ||
-
       !grade ||
-
       !wish
-
     ) {
-
       status.textContent =
-
         "すべて入力してください。";
 
-
       return;
-
     }
 
 
     status.textContent =
-
       "投稿中…";
 
 
     try {
-
       const result = await addDoc(
-
         wishesRef,
 
         {
-
           name: name,
 
           grade: grade,
@@ -477,18 +340,13 @@ form.addEventListener(
           likes: 0,
 
           createdAt: serverTimestamp()
-
         }
-
       );
 
 
       console.log(
-
         "投稿成功",
-
         result.id
-
       );
 
 
@@ -496,31 +354,20 @@ form.addEventListener(
 
 
       status.textContent =
-
         "願い事を投稿しました ✨";
-
     }
 
-
     catch (error) {
-
       console.error(
-
         "投稿エラー",
-
         error
-
       );
 
 
       status.textContent =
-
         `投稿できませんでした：${error.message}`;
-
     }
-
   }
-
 );
 
 
@@ -529,50 +376,33 @@ form.addEventListener(
 // ==============================
 
 document
-
   .querySelectorAll(".sort button")
-
   .forEach(button => {
-
     button.addEventListener(
-
       "click",
 
       () => {
-
         document
-
           .querySelectorAll(".sort button")
-
           .forEach(item => {
-
             item.classList.remove(
-
               "active"
-
             );
-
           });
 
 
         button.classList.add(
-
           "active"
-
         );
 
 
         sortMode =
-
           button.dataset.sort;
 
 
         render();
-
       }
-
     );
-
   });
 
 
@@ -581,25 +411,17 @@ document
 // ==============================
 
 if (prevButton) {
-
   prevButton.addEventListener(
-
     "click",
 
     () => {
-
       carousel.scrollBy({
-
         left: -284,
 
         behavior: "smooth"
-
       });
-
     }
-
   );
-
 }
 
 
@@ -608,23 +430,15 @@ if (prevButton) {
 // ==============================
 
 if (nextButton) {
-
   nextButton.addEventListener(
-
     "click",
 
     () => {
-
       carousel.scrollBy({
-
         left: 284,
 
         behavior: "smooth"
-
       });
-
     }
-
   );
-
 }
