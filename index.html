@@ -1,55 +1,396 @@
-<!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#111a59">
-  <title>虹学 七夕の願い</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
-  <main class="app">
-    <header>
-      <div class="bamboo">🎋</div>
-      <h1>虹学 七夕の願い</h1>
-      <p>みんなの願いが、天の川に届きますように…✨</p>
-      <div class="total">♡ みんなのいいね数 <strong id="totalLikes">0</strong></div>
-    </header>
+// Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 
-    <section class="carousel-wrap">
-      <button class="arrow left" id="prev" aria-label="前へ">‹</button>
-      <div class="carousel" id="carousel"></div>
-      <button class="arrow right" id="next" aria-label="次へ">›</button>
-      <p class="hint">左右にスワイプして<br>みんなの願いを見てみよう！</p>
-    </section>
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  onSnapshot,
+  doc,
+  updateDoc,
+  increment,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
-    <nav class="sort">
-      <button class="active" data-sort="new">✨ 新しい順</button>
-      <button data-sort="likes">♡ いいね順</button>
-    </nav>
 
-    <section class="event">
-      <strong>★ 七夕イベント開催中！</strong>
-      <span>願いを書いて、みんなの願いに「いいね」を送ろう！</span>
-    </section>
+// Firebase設定
+const firebaseConfig = {
+  apiKey: "AIzaSyDsRu7HzIl2_u334EfTrOCPqaIlphgXtZw",
+  authDomain: "nijigaku-tanabata.firebaseapp.com",
+  projectId: "nijigaku-tanabata",
+  storageBucket: "nijigaku-tanabata.firebasestorage.app",
+  messagingSenderId: "959354845309",
+  appId: "1:959354845309:web:109ac828f5a9631f89d914",
+  measurementId: "G-7M0L137SGH"
+};
 
-    <section class="form-card">
-      <h2>願いを書く</h2>
-      <form id="wishForm">
-        <label>名前<input id="name" maxlength="30" required placeholder="例：小柳ロウ"></label>
-        <label>学年
-          <select id="grade" required>
-            <option value="">選択してください</option>
-            <option>1年生</option><option>2年生</option><option>3年生</option>
-          </select>
-        </label>
-        <label>願い事<textarea id="wish" maxlength="120" required placeholder="願い事を書いてください"></textarea></label>
-        <button type="submit">願いを投稿する</button>
-      </form>
-      <p id="status"></p>
-    </section>
-  </main>
 
-  <script type="module" src="script.js"></script>
-</body>
-</html>
+// Firebase起動
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+const wishesRef = collection(db, "wishes");
+
+
+// HTML取得
+const carousel = document.querySelector("#carousel");
+
+const totalLikes = document.querySelector("#totalLikes");
+
+const form = document.querySelector("#wishForm");
+
+const status = document.querySelector("#status");
+
+
+let wishes = [];
+
+let sortMode = "new";
+
+
+// いいね済み記録
+function likedKey(id) {
+
+  return `tanabata-liked-${id}`;
+
+}
+
+
+// HTML安全処理
+function escapeHtml(value = "") {
+
+  const div = document.createElement("div");
+
+  div.textContent = value;
+
+  return div.innerHTML;
+
+}
+
+
+// 短冊表示
+function render() {
+
+  const data = [...wishes].sort((a, b) => {
+
+    if (sortMode === "likes") {
+
+      return (b.likes || 0) - (a.likes || 0);
+
+    }
+
+    return (b.createdMs || 0) - (a.createdMs || 0);
+
+  });
+
+
+  // 総いいね数
+  totalLikes.textContent = wishes
+    .reduce((total, wish) => total + (wish.likes || 0), 0)
+    .toLocaleString("ja-JP");
+
+
+  // 願いがない場合
+  if (!data.length) {
+
+    carousel.innerHTML = `
+      <div class="empty">
+        まだ願い事がありません。<br>
+        最初の短冊を書いてみよう。
+      </div>
+    `;
+
+    return;
+
+  }
+
+
+  // 短冊生成
+  carousel.innerHTML = data.map(wish => {
+
+    const liked =
+      localStorage.getItem(likedKey(wish.id)) === "1";
+
+
+    return `
+      <article class="wish-card">
+
+        <h3>
+          ${escapeHtml(wish.name)}
+        </h3>
+
+        <span class="grade">
+          ${escapeHtml(wish.grade)}
+        </span>
+
+        <div class="wish-text">
+          ${escapeHtml(wish.wish)}
+        </div>
+
+        <button
+          class="like ${liked ? "liked" : ""}"
+          data-id="${wish.id}"
+          ${liked ? "disabled" : ""}
+        >
+
+          ♥ ${wish.likes || 0}
+
+        </button>
+
+      </article>
+    `;
+
+  }).join("");
+
+}
+
+
+// Firebaseから願いをリアルタイム取得
+onSnapshot(
+
+  wishesRef,
+
+  snapshot => {
+
+    wishes = snapshot.docs.map(document => {
+
+      const data = document.data();
+
+      return {
+
+        id: document.id,
+
+        ...data,
+
+        createdMs:
+          data.createdAt?.toMillis?.() || 0
+
+      };
+
+    });
+
+
+    render();
+
+  },
+
+  error => {
+
+    console.error(error);
+
+    carousel.innerHTML = `
+      <div class="empty">
+        Firebaseへの接続を確認してください。<br>
+        ${escapeHtml(error.message)}
+      </div>
+    `;
+
+  }
+
+);
+
+
+// いいね
+carousel.addEventListener("click", async event => {
+
+  const button = event.target.closest(".like");
+
+
+  if (!button || button.disabled) {
+
+    return;
+
+  }
+
+
+  const id = button.dataset.id;
+
+
+  button.disabled = true;
+
+
+  localStorage.setItem(
+
+    likedKey(id),
+
+    "1"
+
+  );
+
+
+  try {
+
+    await updateDoc(
+
+      doc(db, "wishes", id),
+
+      {
+
+        likes: increment(1)
+
+      }
+
+    );
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+
+    localStorage.removeItem(
+
+      likedKey(id)
+
+    );
+
+
+    button.disabled = false;
+
+
+    alert(
+      "いいねに失敗しました"
+    );
+
+  }
+
+});
+
+
+// 願い投稿
+form.addEventListener("submit", async event => {
+
+  event.preventDefault();
+
+
+  const name =
+    document.querySelector("#name")
+      .value
+      .trim();
+
+
+  const grade =
+    document.querySelector("#grade")
+      .value;
+
+
+  const wish =
+    document.querySelector("#wish")
+      .value
+      .trim();
+
+
+  if (!name || !grade || !wish) {
+
+    return;
+
+  }
+
+
+  status.textContent =
+    "投稿中…";
+
+
+  try {
+
+    await addDoc(
+
+      wishesRef,
+
+      {
+
+        name: name,
+
+        grade: grade,
+
+        wish: wish,
+
+        likes: 0,
+
+        createdAt: serverTimestamp()
+
+      }
+
+    );
+
+
+    form.reset();
+
+
+    status.textContent =
+      "願い事を投稿しました ✨";
+
+  }
+
+  catch (error) {
+
+    console.error(error);
+
+
+    status.textContent =
+      "投稿できませんでした。Firebase設定を確認してください。";
+
+  }
+
+});
+
+
+// 並び替え
+document
+  .querySelectorAll(".sort button")
+  .forEach(button => {
+
+    button.addEventListener("click", () => {
+
+      document
+        .querySelectorAll(".sort button")
+        .forEach(item => {
+
+          item.classList.remove("active");
+
+        });
+
+
+      button.classList.add("active");
+
+
+      sortMode =
+        button.dataset.sort;
+
+
+      render();
+
+    });
+
+  });
+
+
+// 左へ
+document.querySelector("#prev")
+  .addEventListener("click", () => {
+
+    carousel.scrollBy({
+
+      left: -284,
+
+      behavior: "smooth"
+
+    });
+
+  });
+
+
+// 右へ
+document.querySelector("#next")
+  .addEventListener("click", () => {
+
+    carousel.scrollBy({
+
+      left: 284,
+
+      behavior: "smooth"
+
+    });
+
+  });
