@@ -1,4 +1,7 @@
-// Firebase
+// ==============================
+// Firebase 読み込み
+// ==============================
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-app.js";
 
 import {
@@ -13,7 +16,10 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore.js";
 
 
-// Firebase設定
+// ==============================
+// Firebase 設定
+// ==============================
+
 const firebaseConfig = {
   apiKey: "AIzaSyDsRu7HzIl2_u334EfTrOCPqaIlphgXtZw",
   authDomain: "nijigaku-tanabata.firebaseapp.com",
@@ -25,7 +31,10 @@ const firebaseConfig = {
 };
 
 
-// Firebase起動
+// ==============================
+// Firebase 起動
+// ==============================
+
 const app = initializeApp(firebaseConfig);
 
 const db = getFirestore(app);
@@ -33,7 +42,10 @@ const db = getFirestore(app);
 const wishesRef = collection(db, "wishes");
 
 
+// ==============================
 // HTML取得
+// ==============================
+
 const carousel = document.querySelector("#carousel");
 
 const totalLikes = document.querySelector("#totalLikes");
@@ -42,13 +54,24 @@ const form = document.querySelector("#wishForm");
 
 const status = document.querySelector("#status");
 
+const prevButton = document.querySelector("#prev");
+
+const nextButton = document.querySelector("#next");
+
+
+// ==============================
+// データ
+// ==============================
 
 let wishes = [];
 
 let sortMode = "new";
 
 
-// いいね済み記録
+// ==============================
+// いいね済み保存キー
+// ==============================
+
 function likedKey(id) {
 
   return `tanabata-liked-${id}`;
@@ -56,7 +79,10 @@ function likedKey(id) {
 }
 
 
+// ==============================
 // HTML安全処理
+// ==============================
+
 function escapeHtml(value = "") {
 
   const div = document.createElement("div");
@@ -68,7 +94,10 @@ function escapeHtml(value = "") {
 }
 
 
+// ==============================
 // 短冊表示
+// ==============================
+
 function render() {
 
   const data = [...wishes].sort((a, b) => {
@@ -85,19 +114,38 @@ function render() {
 
 
   // 総いいね数
-  totalLikes.textContent = wishes
-    .reduce((total, wish) => total + (wish.likes || 0), 0)
-    .toLocaleString("ja-JP");
+
+  if (totalLikes) {
+
+    totalLikes.textContent = wishes
+
+      .reduce(
+
+        (total, wish) => total + (wish.likes || 0),
+
+        0
+
+      )
+
+      .toLocaleString("ja-JP");
+
+  }
 
 
   // 願いがない場合
+
   if (!data.length) {
 
     carousel.innerHTML = `
+
       <div class="empty">
+
         まだ願い事がありません。<br>
+
         最初の短冊を書いてみよう。
+
       </div>
+
     `;
 
     return;
@@ -106,46 +154,74 @@ function render() {
 
 
   // 短冊生成
-  carousel.innerHTML = data.map(wish => {
 
-    const liked =
-      localStorage.getItem(likedKey(wish.id)) === "1";
+  carousel.innerHTML = data
+
+    .map(wish => {
+
+      const liked =
+
+        localStorage.getItem(
+
+          likedKey(wish.id)
+
+        ) === "1";
 
 
-    return `
-      <article class="wish-card">
+      return `
 
-        <h3>
-          ${escapeHtml(wish.name)}
-        </h3>
+        <article class="wish-card">
 
-        <span class="grade">
-          ${escapeHtml(wish.grade)}
-        </span>
+          <h3>
 
-        <div class="wish-text">
-          ${escapeHtml(wish.wish)}
-        </div>
+            ${escapeHtml(wish.name)}
 
-        <button
-          class="like ${liked ? "liked" : ""}"
-          data-id="${wish.id}"
-          ${liked ? "disabled" : ""}
-        >
+          </h3>
 
-          ♥ ${wish.likes || 0}
 
-        </button>
+          <span class="grade">
 
-      </article>
-    `;
+            ${escapeHtml(wish.grade)}
 
-  }).join("");
+          </span>
+
+
+          <div class="wish-text">
+
+            ${escapeHtml(wish.wish)}
+
+          </div>
+
+
+          <button
+
+            class="like ${liked ? "liked" : ""}"
+
+            data-id="${wish.id}"
+
+            ${liked ? "disabled" : ""}
+
+          >
+
+            ♥ ${wish.likes || 0}
+
+          </button>
+
+        </article>
+
+      `;
+
+    })
+
+    .join("");
 
 }
 
 
-// Firebaseから願いをリアルタイム取得
+// ==============================
+// Firebase リアルタイム取得
+// ==============================
+
 onSnapshot(
 
   wishesRef,
@@ -156,6 +232,7 @@ onSnapshot(
 
       const data = document.data();
 
+
       return {
 
         id: document.id,
@@ -163,6 +240,7 @@ onSnapshot(
         ...data,
 
         createdMs:
+
           data.createdAt?.toMillis?.() || 0
 
       };
@@ -170,19 +248,41 @@ onSnapshot(
     });
 
 
+    console.log(
+
+      "願い取得成功",
+
+      wishes
+
+    );
+
+
     render();
 
   },
 
+
   error => {
 
-    console.error(error);
+    console.error(
+
+      "Firebase取得エラー",
+
+      error
+
+    );
+
 
     carousel.innerHTML = `
+
       <div class="empty">
-        Firebaseへの接続を確認してください。<br>
+
+        Firebaseへの接続に失敗しました。<br>
+
         ${escapeHtml(error.message)}
+
       </div>
+
     `;
 
   }
@@ -190,207 +290,341 @@ onSnapshot(
 );
 
 
+// ==============================
 // いいね
-carousel.addEventListener("click", async event => {
+// ==============================
 
-  const button = event.target.closest(".like");
+carousel.addEventListener(
+
+  "click",
+
+  async event => {
+
+    const button =
+
+      event.target.closest(".like");
 
 
-  if (!button || button.disabled) {
+    if (
 
-    return;
+      !button ||
+
+      button.disabled
+
+    ) {
+
+      return;
+
+    }
+
+
+    const id = button.dataset.id;
+
+
+    button.disabled = true;
+
+
+    localStorage.setItem(
+
+      likedKey(id),
+
+      "1"
+
+    );
+
+
+    try {
+
+      await updateDoc(
+
+        doc(
+
+          db,
+
+          "wishes",
+
+          id
+
+        ),
+
+        {
+
+          likes: increment(1)
+
+        }
+
+      );
+
+    }
+
+
+    catch (error) {
+
+      console.error(
+
+        "いいねエラー",
+
+        error
+
+      );
+
+
+      localStorage.removeItem(
+
+        likedKey(id)
+
+      );
+
+
+      button.disabled = false;
+
+
+      alert(
+
+        "いいねに失敗しました"
+
+      );
+
+    }
 
   }
 
-
-  const id = button.dataset.id;
-
-
-  button.disabled = true;
+);
 
 
-  localStorage.setItem(
+// ==============================
+// 願い投稿
+// ==============================
 
-    likedKey(id),
+form.addEventListener(
 
-    "1"
+  "submit",
+
+  async event => {
+
+    event.preventDefault();
+
+
+    const nameInput =
+
+      document.querySelector("#name");
+
+
+    const gradeInput =
+
+      document.querySelector("#grade");
+
+
+    const wishInput =
+
+      document.querySelector("#wish");
+
+
+    const name =
+
+      nameInput.value.trim();
+
+
+    const grade =
+
+      gradeInput.value;
+
+
+    const wish =
+
+      wishInput.value.trim();
+
+
+    if (
+
+      !name ||
+
+      !grade ||
+
+      !wish
+
+    ) {
+
+      status.textContent =
+
+        "すべて入力してください。";
+
+
+      return;
+
+    }
+
+
+    status.textContent =
+
+      "投稿中…";
+
+
+    try {
+
+      const result = await addDoc(
+
+        wishesRef,
+
+        {
+
+          name: name,
+
+          grade: grade,
+
+          wish: wish,
+
+          likes: 0,
+
+          createdAt: serverTimestamp()
+
+        }
+
+      );
+
+
+      console.log(
+
+        "投稿成功",
+
+        result.id
+
+      );
+
+
+      form.reset();
+
+
+      status.textContent =
+
+        "願い事を投稿しました ✨";
+
+    }
+
+
+    catch (error) {
+
+      console.error(
+
+        "投稿エラー",
+
+        error
+
+      );
+
+
+      status.textContent =
+
+        `投稿できませんでした：${error.message}`;
+
+    }
+
+  }
+
+);
+
+
+// ==============================
+// 並び替え
+// ==============================
+
+document
+
+  .querySelectorAll(".sort button")
+
+  .forEach(button => {
+
+    button.addEventListener(
+
+      "click",
+
+      () => {
+
+        document
+
+          .querySelectorAll(".sort button")
+
+          .forEach(item => {
+
+            item.classList.remove(
+
+              "active"
+
+            );
+
+          });
+
+
+        button.classList.add(
+
+          "active"
+
+        );
+
+
+        sortMode =
+
+          button.dataset.sort;
+
+
+        render();
+
+      }
+
+    );
+
+  });
+
+
+// ==============================
+// 左スクロール
+// ==============================
+
+if (prevButton) {
+
+  prevButton.addEventListener(
+
+    "click",
+
+    () => {
+
+      carousel.scrollBy({
+
+        left: -284,
+
+        behavior: "smooth"
+
+      });
+
+    }
 
   );
 
+}
 
-  try {
 
-    await updateDoc(
+// ==============================
+// 右スクロール
+// ==============================
 
-      doc(db, "wishes", id),
+if (nextButton) {
 
-      {
+  nextButton.addEventListener(
 
-        likes: increment(1)
+    "click",
 
-      }
+    () => {
 
-    );
+      carousel.scrollBy({
 
-  }
+        left: 284,
 
-  catch (error) {
+        behavior: "smooth"
 
-    console.error(error);
+      });
 
+    }
 
-    localStorage.removeItem(
+  );
 
-      likedKey(id)
-
-    );
-
-
-    button.disabled = false;
-
-
-    alert(
-      "いいねに失敗しました"
-    );
-
-  }
-
-});
-
-
-// 願い投稿
-form.addEventListener("submit", async event => {
-
-  event.preventDefault();
-
-
-  const name =
-    document.querySelector("#name")
-      .value
-      .trim();
-
-
-  const grade =
-    document.querySelector("#grade")
-      .value;
-
-
-  const wish =
-    document.querySelector("#wish")
-      .value
-      .trim();
-
-
-  if (!name || !grade || !wish) {
-
-    return;
-
-  }
-
-
-  status.textContent =
-    "投稿中…";
-
-
-  try {
-
-    await addDoc(
-
-      wishesRef,
-
-      {
-
-        name: name,
-
-        grade: grade,
-
-        wish: wish,
-
-        likes: 0,
-
-        createdAt: serverTimestamp()
-
-      }
-
-    );
-
-
-    form.reset();
-
-
-    status.textContent =
-      "願い事を投稿しました ✨";
-
-  }
-
-  catch (error) {
-
-    console.error(error);
-
-
-    status.textContent =
-      "投稿できませんでした。Firebase設定を確認してください。";
-
-  }
-
-});
-
-
-// 並び替え
-document
-  .querySelectorAll(".sort button")
-  .forEach(button => {
-
-    button.addEventListener("click", () => {
-
-      document
-        .querySelectorAll(".sort button")
-        .forEach(item => {
-
-          item.classList.remove("active");
-
-        });
-
-
-      button.classList.add("active");
-
-
-      sortMode =
-        button.dataset.sort;
-
-
-      render();
-
-    });
-
-  });
-
-
-// 左へ
-document.querySelector("#prev")
-  .addEventListener("click", () => {
-
-    carousel.scrollBy({
-
-      left: -284,
-
-      behavior: "smooth"
-
-    });
-
-  });
-
-
-// 右へ
-document.querySelector("#next")
-  .addEventListener("click", () => {
-
-    carousel.scrollBy({
-
-      left: 284,
-
-      behavior: "smooth"
-
-    });
-
-  });
+}
