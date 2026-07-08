@@ -58,6 +58,17 @@ const prevButton = document.querySelector("#prev");
 
 const nextButton = document.querySelector("#next");
 
+const formCard = document.querySelector(".form-card");
+
+
+// ==============================
+// 七夕企画 終了日時
+// 2026年7月8日 23:59 日本時間
+// ==============================
+
+const EVENT_END_TIME =
+  new Date("2026-07-08T23:59:00+09:00").getTime();
+
 
 // ==============================
 // データ
@@ -68,6 +79,73 @@ let wishes = [];
 let sortMode = "new";
 
 let currentIndex = 0;
+
+
+// ==============================
+// 企画終了判定
+// ==============================
+
+function isEventEnded() {
+  return Date.now() >= EVENT_END_TIME;
+}
+
+
+// ==============================
+// 投稿フォーム表示切り替え
+// ==============================
+
+function updateEventStatus() {
+  if (!formCard) {
+    return;
+  }
+
+
+  if (!isEventEnded()) {
+    return;
+  }
+
+
+  formCard.innerHTML = `
+    <div class="event-ended">
+      <div class="event-ended-icon">🎋</div>
+
+      <h2>七夕企画は終了しました</h2>
+
+      <p>
+        たくさんの願いごとを<br>
+        ありがとうございました。
+      </p>
+
+      <p class="event-ended-small">
+        短冊は引き続き閲覧できます。<br>
+        気になる願いには ♥ を送れます。
+      </p>
+    </div>
+  `;
+}
+
+
+// ==============================
+// 終了時間の自動監視
+// ==============================
+
+function startEventTimer() {
+  updateEventStatus();
+
+
+  if (isEventEnded()) {
+    return;
+  }
+
+
+  const remainingTime =
+    EVENT_END_TIME - Date.now();
+
+
+  setTimeout(() => {
+    updateEventStatus();
+  }, remainingTime + 1000);
+}
 
 
 // ==============================
@@ -102,6 +180,7 @@ function getSortedWishes() {
       return (b.likes || 0) - (a.likes || 0);
     }
 
+
     return (b.createdMs || 0) - (a.createdMs || 0);
   });
 }
@@ -120,7 +199,9 @@ function render() {
   if (totalLikes) {
     totalLikes.textContent = wishes
       .reduce(
-        (total, wish) => total + (wish.likes || 0),
+        (total, wish) =>
+          total + (wish.likes || 0),
+
         0
       )
       .toLocaleString("ja-JP");
@@ -132,8 +213,7 @@ function render() {
   if (!data.length) {
     carousel.innerHTML = `
       <div class="empty">
-        まだ願い事がありません。<br>
-        最初の短冊を書いてみよう。
+        まだ願い事がありません。
       </div>
     `;
 
@@ -167,19 +247,34 @@ function render() {
 
 
       const wishText =
-        escapeHtml(wish.wish || "").trim();
+        escapeHtml(
+          wish.wish || ""
+        ).trim();
 
 
       return `
         <article class="wish-card">
-          <h3>${name}</h3>
-          <span class="grade">${grade}</span>
-          <div class="wish-text">${wishText}</div>
+
+          <h3>
+            ${name}
+          </h3>
+
+          <span class="grade">
+            ${grade}
+          </span>
+
+          <div class="wish-text">
+            ${wishText}
+          </div>
+
           <button
             class="like ${liked ? "liked" : ""}"
             data-id="${wish.id}"
             ${liked ? "disabled" : ""}
-          >♥ ${wish.likes || 0}</button>
+          >
+            ♥ ${wish.likes || 0}
+          </button>
+
         </article>
       `;
     })
@@ -198,7 +293,9 @@ function render() {
 
 function scrollToCurrent(smooth = true) {
   const cards =
-    carousel.querySelectorAll(".wish-card");
+    carousel.querySelectorAll(
+      ".wish-card"
+    );
 
 
   if (!cards.length) {
@@ -216,9 +313,16 @@ function scrollToCurrent(smooth = true) {
 
 
   card.scrollIntoView({
-    behavior: smooth ? "smooth" : "auto",
-    inline: "center",
-    block: "nearest"
+    behavior:
+      smooth
+        ? "smooth"
+        : "auto",
+
+    inline:
+      "center",
+
+    block:
+      "nearest"
   });
 }
 
@@ -228,7 +332,8 @@ function scrollToCurrent(smooth = true) {
 // ==============================
 
 function goNext() {
-  const data = getSortedWishes();
+  const data =
+    getSortedWishes();
 
 
   if (!data.length) {
@@ -239,9 +344,9 @@ function goNext() {
   currentIndex++;
 
 
-  // 最後 → 最初
-
-  if (currentIndex >= data.length) {
+  if (
+    currentIndex >= data.length
+  ) {
     currentIndex = 0;
   }
 
@@ -255,7 +360,8 @@ function goNext() {
 // ==============================
 
 function goPrev() {
-  const data = getSortedWishes();
+  const data =
+    getSortedWishes();
 
 
   if (!data.length) {
@@ -266,10 +372,9 @@ function goPrev() {
   currentIndex--;
 
 
-  // 最初 → 最後
-
   if (currentIndex < 0) {
-    currentIndex = data.length - 1;
+    currentIndex =
+      data.length - 1;
   }
 
 
@@ -291,76 +396,80 @@ carousel.addEventListener(
     clearTimeout(scrollTimer);
 
 
-    scrollTimer = setTimeout(() => {
-      const cards =
-        [...carousel.querySelectorAll(".wish-card")];
+    scrollTimer =
+      setTimeout(() => {
+        const cards = [
+          ...carousel.querySelectorAll(
+            ".wish-card"
+          )
+        ];
 
 
-      if (!cards.length) {
-        return;
-      }
-
-
-      const carouselCenter =
-        carousel.scrollLeft +
-        carousel.clientWidth / 2;
-
-
-      let closestIndex = 0;
-
-      let closestDistance = Infinity;
-
-
-      cards.forEach((card, index) => {
-        const cardCenter =
-          card.offsetLeft +
-          card.offsetWidth / 2;
-
-
-        const distance =
-          Math.abs(
-            carouselCenter - cardCenter
-          );
-
-
-        if (distance < closestDistance) {
-          closestDistance = distance;
-
-          closestIndex = index;
+        if (!cards.length) {
+          return;
         }
-      });
 
 
-      currentIndex = closestIndex;
+        const carouselCenter =
+          carousel.scrollLeft +
+          carousel.clientWidth / 2;
 
 
-      // 最後までスワイプしたら最初へ
+        let closestIndex = 0;
 
-      if (
-        currentIndex === cards.length - 1 &&
-        carousel.scrollLeft +
-          carousel.clientWidth >=
-          carousel.scrollWidth - 5
-      ) {
-        setTimeout(() => {
-          currentIndex = 0;
-
-          scrollToCurrent(false);
-        }, 250);
-      }
+        let closestDistance =
+          Infinity;
 
 
-      // 最初から左へ行ったら最後へ
+        cards.forEach(
+          (card, index) => {
+            const cardCenter =
+              card.offsetLeft +
+              card.offsetWidth / 2;
 
-      if (
-        currentIndex === 0 &&
-        carousel.scrollLeft <= 5
-      ) {
-        // 通常表示時の誤作動防止
-        return;
-      }
 
-    }, 150);
+            const distance =
+              Math.abs(
+                carouselCenter -
+                cardCenter
+              );
+
+
+            if (
+              distance <
+              closestDistance
+            ) {
+              closestDistance =
+                distance;
+
+
+              closestIndex =
+                index;
+            }
+          }
+        );
+
+
+        currentIndex =
+          closestIndex;
+
+
+        if (
+          currentIndex ===
+            cards.length - 1 &&
+
+          carousel.scrollLeft +
+            carousel.clientWidth >=
+            carousel.scrollWidth - 5
+        ) {
+          setTimeout(() => {
+            currentIndex = 0;
+
+            scrollToCurrent(false);
+          }, 250);
+        }
+
+      }, 150);
   }
 );
 
@@ -373,19 +482,24 @@ onSnapshot(
   wishesRef,
 
   snapshot => {
-    wishes = snapshot.docs.map(document => {
-      const data = document.data();
+    wishes =
+      snapshot.docs.map(
+        document => {
+          const data =
+            document.data();
 
 
-      return {
-        id: document.id,
+          return {
+            id: document.id,
 
-        ...data,
+            ...data,
 
-        createdMs:
-          data.createdAt?.toMillis?.() || 0
-      };
-    });
+            createdMs:
+              data.createdAt
+                ?.toMillis?.() || 0
+          };
+        }
+      );
 
 
     console.log(
@@ -417,6 +531,7 @@ onSnapshot(
 
 // ==============================
 // いいね
+// 終了後も使用可能
 // ==============================
 
 carousel.addEventListener(
@@ -457,7 +572,8 @@ carousel.addEventListener(
         ),
 
         {
-          likes: increment(1)
+          likes:
+            increment(1)
         }
       );
     }
@@ -475,7 +591,8 @@ carousel.addEventListener(
       );
 
 
-      button.disabled = false;
+      button.disabled =
+        false;
 
 
       alert(
@@ -490,101 +607,120 @@ carousel.addEventListener(
 // 願い投稿
 // ==============================
 
-form.addEventListener(
-  "submit",
+if (form) {
+  form.addEventListener(
+    "submit",
 
-  async event => {
-    event.preventDefault();
-
-
-    const nameInput =
-      document.querySelector("#name");
+    async event => {
+      event.preventDefault();
 
 
-    const gradeInput =
-      document.querySelector("#grade");
+      // 終了後は投稿不可
+
+      if (isEventEnded()) {
+        updateEventStatus();
+
+        return;
+      }
 
 
-    const wishInput =
-      document.querySelector("#wish");
+      const nameInput =
+        document.querySelector(
+          "#name"
+        );
 
 
-    const name =
-      nameInput.value.trim();
+      const gradeInput =
+        document.querySelector(
+          "#grade"
+        );
 
 
-    const grade =
-      gradeInput.value;
+      const wishInput =
+        document.querySelector(
+          "#wish"
+        );
 
 
-    const wish =
-      wishInput.value.trim();
+      const name =
+        nameInput.value.trim();
 
 
-    if (
-      !name ||
-      !grade ||
-      !wish
-    ) {
-      status.textContent =
-        "すべて入力してください。";
+      const grade =
+        gradeInput.value;
 
 
-      return;
-    }
+      const wish =
+        wishInput.value.trim();
 
 
-    status.textContent =
-      "投稿中…";
+      if (
+        !name ||
+        !grade ||
+        !wish
+      ) {
+        status.textContent =
+          "すべて入力してください。";
 
 
-    try {
-      const result = await addDoc(
-        wishesRef,
-
-        {
-          name: name,
-
-          grade: grade,
-
-          wish: wish,
-
-          likes: 0,
-
-          createdAt: serverTimestamp()
-        }
-      );
-
-
-      console.log(
-        "投稿成功",
-        result.id
-      );
-
-
-      form.reset();
-
-
-      currentIndex = 0;
+        return;
+      }
 
 
       status.textContent =
-        "願い事を投稿しました ✨";
+        "投稿中…";
+
+
+      try {
+        const result =
+          await addDoc(
+            wishesRef,
+
+            {
+              name: name,
+
+              grade: grade,
+
+              wish: wish,
+
+              likes: 0,
+
+              createdAt:
+                serverTimestamp()
+            }
+          );
+
+
+        console.log(
+          "投稿成功",
+          result.id
+        );
+
+
+        form.reset();
+
+
+        currentIndex = 0;
+
+
+        status.textContent =
+          "願い事を投稿しました ✨";
+      }
+
+
+      catch (error) {
+        console.error(
+          "投稿エラー",
+          error
+        );
+
+
+        status.textContent =
+          `投稿できませんでした：${error.message}`;
+      }
     }
-
-
-    catch (error) {
-      console.error(
-        "投稿エラー",
-        error
-      );
-
-
-      status.textContent =
-        `投稿できませんでした：${error.message}`;
-    }
-  }
-);
+  );
+}
 
 
 // ==============================
@@ -592,14 +728,18 @@ form.addEventListener(
 // ==============================
 
 document
-  .querySelectorAll(".sort button")
+  .querySelectorAll(
+    ".sort button"
+  )
   .forEach(button => {
     button.addEventListener(
       "click",
 
       () => {
         document
-          .querySelectorAll(".sort button")
+          .querySelectorAll(
+            ".sort button"
+          )
           .forEach(item => {
             item.classList.remove(
               "active"
@@ -649,3 +789,10 @@ if (nextButton) {
     goNext
   );
 }
+
+
+// ==============================
+// 七夕企画終了タイマー開始
+// ==============================
+
+startEventTimer();
